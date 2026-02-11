@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  vortex-addon:
+    build: .
+    container_name: vortex-stremio-addon
+    restart: always
+    ports:
+      - "8000:7000"
+    environment:
+      - TZ=Europe/Rome
+      - LOG_LEVEL=info
+    # Opzionale: limita l'uso della memoria per risparmiare risorse sul server/PC
+    deploy:
+      resources:
+        limits:
+          memory: 512M
