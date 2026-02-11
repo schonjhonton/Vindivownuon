@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+jinja2
+python-multipart
+beautifulsoup4
+lxml
+curl_cffi
+fake_headers
