@@ -1,11 +1,12 @@
 import logging
 import re
+import urllib.parse
 from bs4 import BeautifulSoup, SoupStrainer
 from fake_headers import Headers
-from app.resolvers import resolve_supervideo, resolve_mixdrop, resolve_maxstream
+from app.utils import get_tmdb_info
+from app.resolvers import resolve_supervideo, resolve_maxstream, resolve_mixdrop
 
-# Config
-GHD_DOMAIN = "https://guardahd.stream" # Verifica che sia il dominio attivo
+GHD_DOMAIN = "https://guardahd.stream" # Assicurati che sia il dominio corrente
 logger = logging.getLogger(__name__)
 
 class GuardaHDProvider:
@@ -14,79 +15,137 @@ class GuardaHDProvider:
 
     async def get_stream(self, imdb_id: str, type: str, config: dict, client):
         streams = []
+        tmdb_key = config.get("tmdb_key")
         
-        # GuardaHD usa ID IMDB (tt...) direttamente nell'URL per i film?
-        # Dal tuo codice sembra usare: /set-movie-a/{clean_id}
-        # "clean_id" di solito è l'ID IMDB.
-        
+        # Parsing ID
         if ":" in imdb_id:
-            # È una serie (tt:s:e) - GuardaHD gestisce serie? 
-            # Il tuo script originale controllava "if ismovie == 0: return streams"
-            # Quindi sembra supportare SOLO FILM per ora.
-            logger.info("GuardaHD skip: Serie non ancora supportate nel codice originale")
-            return []
-        
-        clean_id = imdb_id # es. tt1234567
-
-        search_url = f"{GHD_DOMAIN}/set-movie-a/{clean_id}"
-        logger.info(f"GuardaHD Searching: {search_url}")
+            clean_id, season_num, episode_num = imdb_id.split(":")
+        else:
+            clean_id = imdb_id
+            season_num = None
+            episode_num = None
 
         random_headers = Headers().generate()
-        
-        try:
-            # 1. Cerca la pagina del film
-            response = await client.get(search_url, allow_redirects=True, headers=random_headers)
-            
-            if response.status_code != 200:
+
+        # LOGICA FILM (Usa ID diretto)
+        if type == "movie":
+            search_url = f"{GHD_DOMAIN}/set-movie-a/{clean_id}"
+            await self._parse_page(search_url, client, streams, "Film")
+
+        # LOGICA SERIE (Usa Ricerca Titolo)
+        elif type == "series" and season_num and episode_num:
+            # 1. Recupera titolo da TMDB
+            info = await get_tmdb_info(clean_id, type, tmdb_key, client)
+            if not info:
                 return []
-
-            soup = BeautifulSoup(response.text, 'lxml', parse_only=SoupStrainer('li'))
-            li_tags = soup.find_all('li')
             
-            host_url = None
-            host_type = None
-
-            # 2. Trova il link del player
-            for tag in li_tags:
-                data_link = tag.get('data-link', '')
-                if not data_link:
-                    continue
+            title = info['title']
+            logger.info(f"GuardaHD: Cerco serie '{title}'")
+            
+            # 2. Cerca su GuardaHD
+            encoded_title = urllib.parse.quote(title)
+            search_page_url = f"{GHD_DOMAIN}/?s={encoded_title}"
+            
+            try:
+                res = await client.get(search_page_url, headers=random_headers)
+                soup = BeautifulSoup(res.text, 'lxml')
                 
-                # Priorità Supervideo (come da tuo script)
-                if 'supervideo' in data_link:
-                    host_url = 'https:' + data_link if data_link.startswith('//') else data_link
-                    host_type = 'supervideo'
-                    break
-                # Backup Maxstream/Mixdrop (se volessi aggiungerli)
-                elif 'maxstream' in data_link:
-                    host_url = data_link
-                    host_type = 'maxstream'
-                    break
-
-            if not host_url:
-                logger.info("GuardaHD: Nessun host compatibile trovato")
-                return []
-
-            # 3. Risolvi il link usando i resolvers
-            direct_url = None
-            if host_type == 'supervideo':
-                direct_url = await resolve_supervideo(host_url, client)
-            elif host_type == 'maxstream':
-                direct_url = await resolve_maxstream(host_url, client)
-
-            if direct_url:
-                streams.append({
-                    "name": "GuardaHD",
-                    "title": f"GuardaHD [{host_type}]\n{direct_url.split('.')[-1].upper()}",
-                    "url": direct_url,
-                    "behaviorHints": {
-                        "bingeGroup": "guardahd",
-                        # Supervideo a volte richiede referer
-                        "proxyHeaders": {"request": {"Referer": "https://supervideo.tv/"}}
-                    }
-                })
-
-        except Exception as e:
-            logger.error(f"Errore GuardaHD: {e}")
+                # Trova il link alla pagina della serie
+                # (Questa parte dipende dalla struttura HTML dei risultati di ricerca di GuardaHD)
+                # Solitamente sono dentro un div con classe 'result-item' o simile
+                found_link = None
+                for a in soup.select('div.title a, .box a'): 
+                    # Controllo euristico semplice: se il titolo cercato è nel testo del link
+                    if title.lower() in a.text.lower():
+                        found_link = a['href']
+                        break
+                
+                if found_link:
+                    # 3. Naviga nella pagina della serie e trova l'episodio
+                    # Url tipico: .../stagione-1-episodio-1 (varia molto, meglio scraping)
+                    logger.info(f"Serie trovata: {found_link}")
+                    episode_page_url = await self._find_episode_url(found_link, season_num, episode_num, client)
+                    
+                    if episode_page_url:
+                        # 4. Estrai stream dalla pagina episodio
+                        await self._parse_page(episode_page_url, client, streams, f"S{season_num}E{episode_num}")
+                        
+            except Exception as e:
+                logger.error(f"Errore ricerca serie GuardaHD: {e}")
 
         return streams
+
+    async def _find_episode_url(self, serie_url, season, episode, client):
+        """
+        Trova l'URL specifico dell'episodio nella pagina della serie.
+        """
+        try:
+            res = await client.get(serie_url)
+            soup = BeautifulSoup(res.text, 'lxml')
+            
+            # Cerca pattern tipo "1x01", "1x1", "Stagione 1 Episodio 1"
+            # Molti temi wordpress usano liste di link
+            target_texts = [
+                f"{season}x{episode}",
+                f"{season}x0{episode}" if int(episode) < 10 else f"{season}x{episode}",
+                f"stagione {season} episodio {episode}"
+            ]
+            
+            for a in soup.find_all('a'):
+                link_text = a.text.lower().strip()
+                for target in target_texts:
+                    if target in link_text:
+                        return a['href']
+                        
+        except Exception as e:
+            logger.error(f"Errore parsing episodi: {e}")
+        return None
+
+    async def _parse_page(self, url, client, streams, label):
+        """
+        Estrae i link (Supervideo, etc) da una pagina finale (Film o Episodio).
+        """
+        try:
+            res = await client.get(url)
+            soup = BeautifulSoup(res.text, 'lxml')
+            
+            # Cerca i player (spesso in <li> data-link="...")
+            li_tags = soup.find_all('li')
+            
+            for tag in li_tags:
+                data_link = tag.get('data-link')
+                if not data_link: continue
+                
+                host_url = 'https:' + data_link if data_link.startswith('//') else data_link
+                
+                resolver = None
+                host_name = ""
+                
+                if 'supervideo' in host_url:
+                    resolver = resolve_supervideo
+                    host_name = "SuperVideo"
+                elif 'mixdrop' in host_url:
+                    resolver = resolve_mixdrop
+                    host_name = "MixDrop"
+                elif 'maxstream' in host_url:
+                    resolver = resolve_maxstream
+                    host_name = "MaxStream"
+                
+                if resolver:
+                    try:
+                        direct_url = await resolver(host_url, client)
+                        if direct_url:
+                            streams.append({
+                                "name": "GuardaHD",
+                                "title": f"{host_name} - {label}\nGuardaHD",
+                                "url": direct_url,
+                                "behaviorHints": {
+                                    "bingeGroup": "guardahd",
+                                    "proxyHeaders": {"request": {"Referer": "https://supervideo.tv/"}}
+                                }
+                            })
+                    except Exception as e:
+                        logger.warning(f"Errore resolver {host_name}: {e}")
+
+        except Exception as e:
+            logger.error(f"Errore parsing pagina player: {e}")
