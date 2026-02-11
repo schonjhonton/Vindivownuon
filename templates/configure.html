@@ -33,7 +33,6 @@
             overflow-x: hidden;
         }
 
-        /* Glassmorphism Card */
         .config-card {
             background: var(--card-bg);
             backdrop-filter: blur(16px);
@@ -48,7 +47,6 @@
             overflow: hidden;
         }
 
-        /* Vortex Animation */
         .vortex-icon {
             font-size: 3rem;
             background: -webkit-linear-gradient(45deg, #00d2ff, #3a7bd5);
@@ -93,8 +91,14 @@
             color: white;
         }
 
-        .form-control::placeholder {
-            color: rgba(255, 255, 255, 0.3);
+        .section-title {
+            color: var(--primary-color);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            opacity: 0.8;
         }
 
         .btn-install {
@@ -134,7 +138,6 @@
             margin: 1.5rem 0;
         }
 
-        /* Decorative blobs */
         .blob {
             position: absolute;
             width: 300px;
@@ -168,26 +171,30 @@
                     <label for="tmdb_key" class="form-label">
                         <i class="fas fa-key me-2"></i>TMDB API Key (Obbligatoria)
                     </label>
-                    <input type="text" class="form-control" id="tmdb_key" placeholder="Incolla la tua chiave qui..." required>
+                    <input type="text" class="form-control" id="tmdb_key" placeholder="La tua chiave TMDB..." required>
                     <div class="help-text">
-                        Non hai una chiave? <a href="https://www.themoviedb.org/settings/api" target="_blank">Ottienila qui</a>.
+                        <a href="https://www.themoviedb.org/settings/api" target="_blank">Ottieni chiave qui</a>.
                     </div>
                 </div>
 
                 <div class="divider"></div>
 
+                <div class="section-title">
+                    <i class="fas fa-server me-2"></i>Configurazione MFP (Proxy)
+                </div>
+                
                 <div class="mb-3">
-                    <label for="mfp_code" class="form-label">
-                        <i class="fas fa-shield-halved me-2"></i>Codice MFP / Password
-                    </label>
+                    <label for="mfp_url" class="form-label">MFP URL (Obbligatorio per GuardaHD)</label>
+                    <input type="url" class="form-control" id="mfp_url" placeholder="Es: http://123.456.78.9:8080" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="mfp_pass" class="form-label">MFP Password / Code</label>
                     <div class="input-group">
-                        <input type="password" class="form-control" id="mfp_code" placeholder="Inserisci pass o codice MFP">
+                        <input type="password" class="form-control" id="mfp_pass" placeholder="Password se richiesta" required>
                         <button class="btn btn-outline-secondary" type="button" id="togglePassword" style="border-color: rgba(255,255,255,0.1); color: #ccc;">
                             <i class="fas fa-eye"></i>
                         </button>
-                    </div>
-                    <div class="help-text">
-                        Necessario solo se il provider richiede autenticazione extra.
                     </div>
                 </div>
 
@@ -198,65 +205,37 @@
 
             <div class="text-center mt-4">
                 <small class="text-secondary" style="font-size: 0.75rem; opacity: 0.5;">
-                    Vortex Addon v1.0.0 &bull; Powered by Python
+                    Vortex v1.2.0
                 </small>
             </div>
         </div>
     </div>
 
     <script>
-        // Toggle Password Visibility
-        const togglePassword = document.querySelector('#togglePassword');
-        const password = document.querySelector('#mfp_code');
-
-        togglePassword.addEventListener('click', function (e) {
-            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
-            password.setAttribute('type', type);
+        // Toggle Password
+        document.querySelector('#togglePassword').addEventListener('click', function (e) {
+            const pwd = document.querySelector('#mfp_pass');
+            const type = pwd.getAttribute('type') === 'password' ? 'text' : 'password';
+            pwd.setAttribute('type', type);
             this.querySelector('i').classList.toggle('fa-eye');
             this.querySelector('i').classList.toggle('fa-eye-slash');
         });
 
-        // Form Handling
+        // Submit
         document.getElementById('configForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const tmdbKey = document.getElementById('tmdb_key').value.trim();
-            const mfpCode = document.getElementById('mfp_code').value.trim();
-
-            if (!tmdbKey) {
-                alert("La chiave TMDB è necessaria per il corretto funzionamento!");
-                return;
-            }
-
-            // Costruiamo l'oggetto di configurazione
             const config = {
-                tmdb_key: tmdbKey,
-                mfp_code: mfpCode
+                tmdb_key: document.getElementById('tmdb_key').value.trim(),
+                mfp_url: document.getElementById('mfp_url').value.trim(),
+                mfp_pass: document.getElementById('mfp_pass').value.trim()
             };
 
-            // Codifica in Base64
-            // Nota: btoa non supporta bene caratteri unicode, usiamo un fix semplice se servisse
-            // ma per chiavi API e codici ASCII va benissimo.
-            const jsonStr = JSON.stringify(config);
-            const base64Config = btoa(jsonStr);
+            const base64Config = btoa(JSON.stringify(config));
+            const host = window.location.host;
+            const finalUrl = `stremio://${host}/${base64Config}/manifest.json`;
 
-            // Logica URL Stremio
-            const currentProtocol = window.location.protocol;
-            const currentHost = window.location.host;
-            
-            // Stremio usa il protocollo stremio:// invece di http:// o https://
-            // Se siamo su localhost (sviluppo), spesso stremio non accetta 'localhost' ma vuole IP
-            // Ma per addon remoti standard:
-            let finalUrl = `stremio://${currentHost}/${base64Config}/manifest.json`;
-
-            // Se l'utente è su HTTPS, meglio gestire il link
-            if (currentProtocol === 'https:') {
-                finalUrl = `stremio://${currentHost}/${base64Config}/manifest.json`;
-            }
-
-            console.log("Installing with URL:", finalUrl);
-            
-            // Reindirizza all'app
+            console.log("Install:", finalUrl);
             window.location.href = finalUrl;
         });
     </script>
