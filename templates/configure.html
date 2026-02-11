@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configura Vortex Addon</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #00d2ff;
+            --secondary-color: #928dab;
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --input-bg: rgba(15, 23, 42, 0.8);
+            --glow: 0 0 20px rgba(0, 210, 255, 0.3);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify_content: center;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism Card */
+        .config-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            padding: 2.5rem;
+            max-width: 500px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Vortex Animation */
+        .vortex-icon {
+            font-size: 3rem;
+            background: -webkit-linear-gradient(45deg, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: spin 10s linear infinite;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        h1 {
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            background-color: var(--input-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            background-color: rgba(15, 23, 42, 1);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(0, 210, 255, 0.1);
+            color: white;
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-install {
+            background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: white;
+            width: 100%;
+            margin-top: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: var(--glow);
+        }
+
+        .btn-install:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 210, 255, 0.4);
+            color: white;
+        }
+
+        .help-text {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 5px;
+        }
+
+        .help-text a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .divider {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 1.5rem 0;
+        }
+
+        /* Decorative blobs */
+        .blob {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: var(--primary-color);
+            filter: blur(80px);
+            opacity: 0.15;
+            z-index: -1;
+            border-radius: 50%;
+        }
+        .blob-1 { top: -100px; left: -100px; }
+        .blob-2 { bottom: -100px; right: -100px; background: #8b5cf6; }
+
+    </style>
+</head>
+<body>
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="container d-flex justify-content-center">
+        <div class="config-card">
+            <div class="text-center mb-4">
+                <i class="fas fa-hurricane vortex-icon"></i>
+                <h1>VORTEX ADDON</h1>
+                <p class="text-secondary">Configurazione Stream ITA</p>
+            </div>
+
+            <form id="configForm">
+                <div class="mb-3">
+                    <label for="tmdb_key" class="form-label">
+                        <i class="fas fa-key me-2"></i>TMDB API Key (Obbligatoria)
+                    </label>
+                    <input type="text" class="form-control" id="tmdb_key" placeholder="Incolla la tua chiave qui..." required>
+                    <div class="help-text">
+                        Non hai una chiave? <a href="https://www.themoviedb.org/settings/api" target="_blank">Ottienila qui</a>.
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="mb-3">
+                    <label for="mfp_code" class="form-label">
+                        <i class="fas fa-shield-halved me-2"></i>Codice MFP / Password
+                    </label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="mfp_code" placeholder="Inserisci pass o codice MFP">
+                        <button class="btn btn-outline-secondary" type="button" id="togglePassword" style="border-color: rgba(255,255,255,0.1); color: #ccc;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="help-text">
+                        Necessario solo se il provider richiede autenticazione extra.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-install">
+                    <i class="fas fa-rocket me-2"></i> Installa su Stremio
+                </button>
+            </form>
+
+            <div class="text-center mt-4">
+                <small class="text-secondary" style="font-size: 0.75rem; opacity: 0.5;">
+                    Vortex Addon v1.0.0 &bull; Powered by Python
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle Password Visibility
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#mfp_code');
+
+        togglePassword.addEventListener('click', function (e) {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            this.querySelector('i').classList.toggle('fa-eye');
+            this.querySelector('i').classList.toggle('fa-eye-slash');
+        });
+
+        // Form Handling
+        document.getElementById('configForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const tmdbKey = document.getElementById('tmdb_key').value.trim();
+            const mfpCode = document.getElementById('mfp_code').value.trim();
+
+            if (!tmdbKey) {
+                alert("La chiave TMDB è necessaria per il corretto funzionamento!");
+                return;
+            }
+
+            // Costruiamo l'oggetto di configurazione
+            const config = {
+                tmdb_key: tmdbKey,
+                mfp_code: mfpCode
+            };
+
+            // Codifica in Base64
+            // Nota: btoa non supporta bene caratteri unicode, usiamo un fix semplice se servisse
+            // ma per chiavi API e codici ASCII va benissimo.
+            const jsonStr = JSON.stringify(config);
+            const base64Config = btoa(jsonStr);
+
+            // Logica URL Stremio
+            const currentProtocol = window.location.protocol;
+            const currentHost = window.location.host;
+            
+            // Stremio usa il protocollo stremio:// invece di http:// o https://
+            // Se siamo su localhost (sviluppo), spesso stremio non accetta 'localhost' ma vuole IP
+            // Ma per addon remoti standard:
+            let finalUrl = `stremio://${currentHost}/${base64Config}/manifest.json`;
+
+            // Se l'utente è su HTTPS, meglio gestire il link
+            if (currentProtocol === 'https:') {
+                finalUrl = `stremio://${currentHost}/${base64Config}/manifest.json`;
+            }
+
+            console.log("Installing with URL:", finalUrl);
+            
+            // Reindirizza all'app
+            window.location.href = finalUrl;
+        });
+    </script>
+</body>
+</html>
